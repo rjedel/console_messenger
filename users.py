@@ -58,10 +58,10 @@ def edit_user(cur, username, password, edit, new_pass):
                 raise IncorrectPasswordError
     except NoData:
         print(f'no user "{username}"')
-    except IncorrectPasswordError as err:
-        print(err)
-    except TooShortPasswordError as err:
-        print(err)
+    except IncorrectPasswordError as e:
+        print(e)
+    except TooShortPasswordError as er:
+        print(er)
 
 
 def delete_user(cur, username, password, delete):
@@ -77,14 +77,18 @@ def delete_user(cur, username, password, delete):
                 raise IncorrectPasswordError
     except NoData:
         print(f'no user "{username}"')
-    except IncorrectPasswordError as err:
-        print(err)
+    except IncorrectPasswordError as e:
+        print(e)
 
 
 def user_list(cur, lst):
     if lst is True:
-        for usr in User.load_all_users(cur):
-            print(f'id: {usr.id}   username: {usr.username}')
+        users = User.load_all_users(cur)
+        if len(users) == 0:
+            print("no users")
+        else:
+            for usr in users:
+                print(f'id: {usr.id}   username: {usr.username}')
 
 
 if __name__ == '__main__':
@@ -118,24 +122,25 @@ if __name__ == '__main__':
         else:
             parser.print_help()
 
-    except OperationalError as err:
-        print("Connection Error: ", err)
+    except OperationalError as e:
+        print("Connection Error: ", e)
     else:
         cursor.close()
         cnx.close()
 
-# python3 users.py
-# python3 users.py -l
-# python3 users.py -p nicepass -u Joe
-# python3 users.py -p ni -u Joe
-# python3 users.py -p nicepassword -u Joe
-# python3 users.py -p nicepassw -u Ann
-# python3 users.py -p nicepassw -u Mary
-# python3 users.py -l
-# python3 users.py -u Joe -p wrongpass -n new_pass -e
-# python3 users.py -u WrongUser -p somepassword -n new_pass -e
-# python3 users.py -u Joe -p nicepass -n new#passwd -e
-# python3 users.py -u Mary -p wrongpass -d
-# python3 users.py -u Mary -p nicepassw -d
-# python3 users.py -l
-
+test = """"
+python3 users.py
+python3 users.py -l
+python3 users.py -p nicepass -u Joe
+python3 users.py -p ni -u Joe
+python3 users.py -p nicepassword -u Joe
+python3 users.py -p nicepassw -u Ann
+python3 users.py -p nicepassw -u Mary
+python3 users.py -l
+python3 users.py -u Joe -p wrongpass -n new_pass -e
+python3 users.py -u WrongUser -p somepassword -n new_pass -e
+python3 users.py -u Joe -p nicepass -n new#passwd -e
+python3 users.py -u Mary -p wrongpass -d
+python3 users.py -u Mary -p nicepassw -d
+python3 users.py -l
+"""
