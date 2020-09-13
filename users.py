@@ -1,132 +1,141 @@
 import argparse
-from psycopg2.errors import UniqueViolation, NoData
-from models import User, Message
-from clcrypto import check_password, hash_password
+
 from psycopg2 import connect, OperationalError
+from psycopg2.errors import UniqueViolation, NoData
 
-
-class WrongPasswordError(Exception):
-    def __str__(self):
-        return "Incorrect Password!"
-
-
-user_ = "postgres"
-password_ = "coderslab"
-host_ = "localhost"
-database_ = "messenger"
-
-
-def connect_to_db():
-    try:
-        connection = connect(user=user_, password=password_, host=host_, database=database_)
-        connection.autocommit = True
-        return connection
-    except OperationalError as err:
-        print(err)
-    else:
-        connection.close()
-
-
-cnx = connect_to_db()
-
-if cnx is None:
-    print('Cannot connect to database')
-    # exit(-1)
-
-cursor = cnx.cursor()
+from clcrypto import check_password
+from models import User
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--username", help="username")
 parser.add_argument("-p", "--password", help="password (min 8 characters)")
 parser.add_argument("-n", "--new_pass", help="new password (min 8 characters)")
-parser.add_argument("-l", "--list", help="list users", action="store_true")
+parser.add_argument("-l", "--list", help="user list", action="store_true")
 parser.add_argument("-d", "--delete", help="delete user", action="store_true")
 parser.add_argument("-e", "--edit", help="edit user", action="store_true")
 
 args = parser.parse_args()
 
 
-def create_user(username, password, salt=None):
+class IncorrectPasswordError(Exception):
+    def __str__(self):
+        return "Incorrect Password!"
+
+
+class TooShortPasswordError(Exception):
+    def __str__(self):
+        return "use 8 characters or more for your password"
+
+
+def create_user(cur, username, password):
     try:
         if len(password) >= 8:
-            new_user = User(username=username, password=password, salt=salt)
-            new_user.safe_to_db(cursor)
+            new_user = User(username=username, password=password)
+            new_user.safe_to_db(cur)
             print(f'"{username}" user created')
         else:
-            raise ValueError
-    except UniqueViolation:
-        print(f'"{username}" already exists')
-    except ValueError:
-        print('password must be at least 8 characters long')
+            raise TooShortPasswordError
+    except UniqueViolation as e:
+        print(f'"{username}" already exists. {e}')
+    except TooShortPasswordError as er:
+        print(er)
 
 
-def edit_user(username, password, edit, new_pass):
+def edit_user(cur, username, password, edit, new_pass):
     try:
-        edited_user = User.load_user_by_username(cursor, username)
+        edited_user = User.load_user_by_username(cur, username)
         if edited_user is None:
             raise NoData
         else:
             if check_password(password, edited_user.hashed_password) and edit is True:
                 if len(new_pass) >= 8:
                     edited_user.hashed_password = new_pass
-                    edited_user.safe_to_db(cursor)
+                    edited_user.safe_to_db(cur)
                     print('password has been changed')
                 else:
-                    raise ValueError
+                    raise TooShortPasswordError
             else:
-                raise WrongPasswordError
+                raise IncorrectPasswordError
     except NoData:
         print(f'no user "{username}"')
-    except WrongPasswordError as err:
+    except IncorrectPasswordError as err:
         print(err)
-    except ValueError:
-        print('password must be at least 8 characters long')
+    except TooShortPasswordError as err:
+        print(err)
 
 
-def delete_user(username, password, delete):
+def delete_user(cur, username, password, delete):
     try:
-        del_user = User.load_user_by_username(cursor, username)
+        del_user = User.load_user_by_username(cur, username)
         if del_user is None:
             raise NoData
         else:
             if check_password(password, del_user.hashed_password) and delete is True:
-                del_user.delete(cursor)
+                del_user.delete(cur)
                 print(f'"{username}" has been deleted')
             else:
-                raise WrongPasswordError
-
+                raise IncorrectPasswordError
     except NoData:
         print(f'no user "{username}"')
-    except WrongPasswordError as err:
+    except IncorrectPasswordError as err:
         print(err)
 
 
-def user_list(lst):
+def user_list(cur, lst):
     if lst is True:
-        for usr in User.load_all_users(cursor):
+        for usr in User.load_all_users(cur):
             print(f'id: {usr.id}   username: {usr.username}')
 
 
-if args.username and args.password and not args.new_pass and not args.list and not args.delete and not args.edit:
-    create_user(args.username, args.password)
+if __name__ == '__main__':
 
-elif args.username and args.password and args.edit and args.new_pass and not args.list and not args.delete:
-    edit_user(args.username, args.password, args.edit, args.new_pass)
+    user_ = "postgres"
+    password_ = "coderslab"
+    host_ = "localhost"
+    database_ = "messenger"
 
-elif args.username and args.password and args.delete and not args.new_pass and not args.list and not args.edit:
-    delete_user(args.username, args.password, args.delete)
+    try:
+        cnx = connect(user=user_, password=password_, host=host_, database=database_)
+        cnx.autocommit = True
 
-elif args.list and not args.username and not args.password and not args.new_pass and not args.delete and not args.edit:
-    user_list(args.list)
+        cursor = cnx.cursor()
 
-else:
-    parser.print_help()
+        if args.username and args.password \
+                and not args.new_pass and not args.list and not args.delete and not args.edit:
+            create_user(cursor, args.username, args.password)
 
-# us1 = create_user('user5', 'alamakota', 'salt')
-# python3 users.py -u tt -p alamakota
-# python3 users.py -u tt -p alamakota -n halohalo -e
+        elif args.username and args.password and args.edit and args.new_pass \
+                and not args.list and not args.delete:
+            edit_user(cursor, args.username, args.password, args.edit, args.new_pass)
 
-cursor.close()
-cnx.close()
+        elif args.username and args.password and args.delete \
+                and not args.new_pass and not args.list and not args.edit:
+            delete_user(cursor, args.username, args.password, args.delete)
 
-# print(int(args.username) * 3)
+        elif args.list \
+                and not args.username and not args.password and not args.new_pass and not args.delete and not args.edit:
+            user_list(cursor, args.list)
+        else:
+            parser.print_help()
+
+    except OperationalError as err:
+        print("Connection Error: ", err)
+    else:
+        cursor.close()
+        cnx.close()
+
+# python3 users.py
+# python3 users.py -l
+# python3 users.py -p nicepass -u Joe
+# python3 users.py -p ni -u Joe
+# python3 users.py -p nicepassword -u Joe
+# python3 users.py -p nicepassw -u Ann
+# python3 users.py -p nicepassw -u Mary
+# python3 users.py -l
+# python3 users.py -u Joe -p wrongpass -n new_pass -e
+# python3 users.py -u WrongUser -p somepassword -n new_pass -e
+# python3 users.py -u Joe -p nicepass -n new#passwd -e
+# python3 users.py -u Mary -p wrongpass -d
+# python3 users.py -u Mary -p nicepassw -d
+# python3 users.py -l
+
