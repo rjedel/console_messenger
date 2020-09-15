@@ -127,20 +127,3 @@ if __name__ == '__main__':
     else:
         cursor.close()
         cnx.close()
-
-test = """"
-python3 users.py
-python3 users.py -l
-python3 users.py -p nicepass -u Joe
-python3 users.py -p ni -u Joe
-python3 users.py -p nicepassword -u Joe
-python3 users.py -p nicepassw -u Ann
-python3 users.py -p nicepassw -u Mary
-python3 users.py -l
-python3 users.py -u Joe -p wrongpass -n new_pass -e
-python3 users.py -u WrongUser -p somepassword -n new_pass -e
-python3 users.py -u Joe -p nicepass -n new#passwd -e
-python3 users.py -u Mary -p wrongpass -d
-python3 users.py -u Mary -p nicepassw -d
-python3 users.py -l
-"""
