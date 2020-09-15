@@ -92,6 +92,10 @@ class Message:
     def creation_date(self):
         return self._creation_date
 
+    @creation_date.setter
+    def creation_date(self, new_creation_date):
+        self._creation_date = new_creation_date
+
     @property
     def id(self):
         return self._id
