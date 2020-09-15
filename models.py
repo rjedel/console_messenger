@@ -107,11 +107,8 @@ class Message:
         messages = []
         for row in cursor.fetchall():
             id_, from_id, to_id, text, creation_date = row
-            loaded_message = Message()
+            loaded_message = Message(from_id, to_id, text)
             loaded_message._id = id_
-            loaded_message.from_id = from_id
-            loaded_message.to_id = to_id
-            loaded_message.text = text
             loaded_message.creation_date = creation_date
             messages.append(loaded_message)
         return messages
