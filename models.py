@@ -103,7 +103,7 @@ class Message:
     @staticmethod
     def load_all_messages(cursor, user_id=None):
         if user_id:
-            sql = "SELECT id, from_id, to_id, text, creation_date FROM messages WHERE to_id=%s"
+            sql = "SELECT id, from_id, to_id, text, creation_date FROM messages WHERE to_id=%s ORDER BY creation_date"
             cursor.execute(sql, (user_id,))
         else:
             sql = "SELECT id, from_id, to_id, text, creation_date FROM messages"
