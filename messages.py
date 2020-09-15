@@ -2,7 +2,7 @@ import argparse
 from models import User, Message
 
 from psycopg2 import connect, OperationalError
-from psycopg2.errors import UniqueViolation, NoData
+from psycopg2.errors import NoData
 
 from clcrypto import check_password
 
@@ -21,10 +21,6 @@ class IncorrectPasswordError(Exception):
         return "Incorrect Password!"
 
 
-# class TooShortPasswordError(Exception):
-#     def __str__(self):
-#         return "use 8 characters or more for your password"
-
 def messages_list(cur, lst, username, password):
     if lst is True:
         try:
@@ -33,13 +29,14 @@ def messages_list(cur, lst, username, password):
                 raise NoData
             else:
                 if check_password(password, user.hashed_password):
-                    messages = Message.load_all_messages(cur, user.id)
-                    if len(messages) == 0:
+                    messages_ = Message.load_all_messages(cur, user.id)
+                    if len(messages_) == 0:
                         print("no messages")
                     else:
-                        for msg in messages:
-                            print(
-                                f'message to: {User.load_user_by_id(cursor, msg.to_id).username}\nsent on: {msg.creation_date:%y-%m-%d %H:%M:%S}\ncontent: {msg.text}\n')
+                        print(f"{username}'s INBOX:\n")
+                        for msg in messages_:
+                            print(f'message from: {User.load_user_by_id(cur, msg.from_id).username}\n'
+                                  f'sent on: {msg.creation_date:%y-%m-%d %H:%M:%S}\ncontent: {msg.text}\n')
                 else:
                     raise IncorrectPasswordError
         except NoData:
@@ -57,11 +54,11 @@ def send_message(cur, username, password, to, send):
             if check_password(password, user.hashed_password):
                 recipient = User.load_user_by_username(cur, to)
                 if recipient is None:
-                    print(f'no user "{to}"')
+                    print(f'recipient "{to}" does not exist')
                 else:
                     msg = Message(user.id, recipient.id, send)
                     msg.safe_to_db(cur)
-                    print('message was sent')
+                    print('Message send')
             else:
                 raise IncorrectPasswordError
     except IncorrectPasswordError as e:
@@ -95,32 +92,3 @@ if __name__ == '__main__':
     else:
         cursor.close()
         cnx.close()
-
-test = """"
-python3 users.py
-python3 users.py -l
-python3 users.py -p nicepass -u Joe
-python3 users.py -p ni -u Joe
-python3 users.py -p nicepassword -u Joe
-python3 users.py -p nicepassw -u Ann
-python3 users.py -p nicepassw -u Mary
-python3 users.py -l
-python3 users.py -u Joe -p wrongpass -n new_pass -e
-python3 users.py -u WrongUser -p somepassword -n new_pass -e
-python3 users.py -u Joe -p nicepass -n new#passwd -e
-python3 users.py -u Mary -p wrongpass -d
-python3 users.py -u Mary -p nicepassw -d
-python3 users.py -l
-
-
-python3 messages.py -l -u Joe -p new#passwd
-python3 messages.py -l -u Ann -p nicepassw
-
-python3 messages.py -u Ann -p nicepassw -t Joe -s "from ann to joe"
-python3 messages.py -u Ann -p nicepassw -t Joe -s "Hello Joe"
-python3 messages.py -u Ann -p nicepassw -t Joe -s "How are Y?"
-
-python3 messages.py -u Joe -p new#passwd -t Wronuser -s "from joe to ann"
-python3 messages.py -u Joe -p new#passwd -t Ann -s "from joe to ann"
-
-"""
